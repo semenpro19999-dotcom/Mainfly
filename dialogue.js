@@ -27,18 +27,26 @@ class FlyDialogue {
       ]);
     }
 
-    // 2. Наказание: "ПЛОХО", "ФУ", "НЕЛЬЗЯ"
-    if (this.matchesAny(raw, ['плохо', 'фу', 'нельзя', 'отставить', 'стоять'])) {
+    // 2. Наказание: "ПЛОХО", "ФУ", "НЕЛЬЗЯ" -> теперь вызывает полноценный шок "БО-БО!"
+    if (this.matchesAny(raw, ['плохо', 'фу', 'нельзя', 'отставить'])) {
       this.stopCombat();
+      // Вызываем полноценный болевой шок в мозге (как при физическом ударе)
+      this.brain.applyDamagePain(20, 16); 
       this.brain.applyPunishmentVoice(raw);
-      // Муха пятится назад и опускает голову
+
+      // Муха в панике отскакивает назад и подпрыгивает от "боли"
       this.bot.setControlState('forward', false);
       this.bot.setControlState('back', true);
-      setTimeout(() => this.bot.setControlState('back', false), 800);
+      this.bot.setControlState('jump', true);
+      setTimeout(() => {
+        this.bot.setControlState('back', false);
+        this.bot.setControlState('jump', false);
+      }, 700);
+
       return this.pickRandom([
-        'Бззз... Прости! Дофаминовый укол! Больше так не делаю! 😿🪰',
-        'Бзз-ззз... Поняла, "фу"! Отступаю назад! 🪰🛑',
-        'Бззз! Стыдно, опустила усики... Исправлюсь! 🪰'
+        'Bzz-AIIIEEE! Бо-бо! За что "фу"?! Мне больно! 💥😿🪰',
+        'Бзззз-ай! Бо-бо в мозгу! Услышала "фу", отскакиваю в ужасе! 💥🪰🛑',
+        'Ай-ай-ай! Нейронный шок! Бо-бо от слова "плохо"! Больше так не буду! 😿🪰'
       ]);
     }
 

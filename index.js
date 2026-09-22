@@ -2,6 +2,7 @@ const mineflayer = require('mineflayer');
 const { Vec3 } = require('vec3');
 const { DrosophilaBrain } = require('./brain');
 const { FlyWireConnectomeLoader } = require('./connectome_loader');
+const { FlyDialogue } = require('./dialogue');
 const path = require('path');
 require('dotenv').config();
 
@@ -26,6 +27,7 @@ async function main() {
 
   const bot = mineflayer.createBot(CONFIG);
   const brain = new DrosophilaBrain(16);
+  const dialogue = new FlyDialogue(brain, bot);
 
   let lastHealth = 20;
 
@@ -51,6 +53,14 @@ async function main() {
       const motorActions = brain.update(sensoryData);
       applyFlyMotorOutput(bot, motorActions);
     }, 50);
+  });
+
+  bot.on('chat', (username, message) => {
+    if (username === bot.username) return;
+    const reply = dialogue.processMessage(username, message);
+    if (reply) {
+      bot.chat(reply);
+    }
   });
 
 

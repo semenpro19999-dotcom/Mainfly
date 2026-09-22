@@ -49,6 +49,9 @@ async function main() {
         lastHealth = bot.health; // regenerated
       }
       
+      // If currently locked in combat pursuit, the combat loop handles movements
+      if (brain.combatMode) return;
+
       const sensoryData = sampleFlyVision(bot);
       const motorActions = brain.update(sensoryData);
       applyFlyMotorOutput(bot, motorActions);

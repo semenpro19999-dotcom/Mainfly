@@ -40,6 +40,7 @@ class DrosophilaBrain {
     this.saccadeTimer = 0;
     this.currentTurnBias = 0;
     this.painCooldown = 0;
+    this.combatMode = false; // whether actively locked into target pursuit
   }
 
   loadMemory() {
@@ -93,6 +94,25 @@ class DrosophilaBrain {
 
     this.saveMemory();
     console.log(`[Fly Brain] 💥 БО-БО! Муха получила ${damage.toFixed(1)} урона! Дофаминовый шок. Осторожность выросла до ${this.learnedWeights.cautiousness.toFixed(2)}.`);
+  }
+
+  /**
+   * Наказание голосом: "Плохо!", "Фу!", "Нельзя!"
+   */
+  applyPunishmentVoice(word = 'фу') {
+    this.dopamine_pain = 0.8;
+    this.learnedWeights.damageCount++;
+    this.learnedWeights.cautiousness = Math.min(1.0, this.learnedWeights.cautiousness + 0.05);
+
+    // Снижаем агрессию и отменяем последнее действие
+    if (this.actionHistory.length > 0) {
+      const recent = this.actionHistory[this.actionHistory.length - 1];
+      if (recent.forward) {
+        this.learnedWeights.lightAttraction = Math.max(0.1, this.learnedWeights.lightAttraction - 0.05);
+      }
+    }
+    this.saveMemory();
+    console.log(`[Fly Brain] 🛑 Получена голосовая команда наказания ("${word}"). Осторожность повышена до ${this.learnedWeights.cautiousness.toFixed(2)}.`);
   }
 
   /**

@@ -1,12 +1,14 @@
 /**
  * Natural Language Understanding & Interactive Dialogue for Drosophila Fly
- * Integrates Russian intent recognition and speech generation.
+ * Integrates Russian intent recognition, speech generation, and targeted combat pursuit.
  */
 
 class FlyDialogue {
   constructor(brain, bot) {
     this.brain = brain;
     this.bot = bot;
+    this.attackInterval = null;
+    this.currentTarget = null;
   }
 
   processMessage(username, text) {
@@ -25,22 +27,49 @@ class FlyDialogue {
       ]);
     }
 
-    // 2. Жалобы / Боль / Вопрос о самочувствии
+    // 2. Наказание: "ПЛОХО", "ФУ", "НЕЛЬЗЯ"
+    if (this.matchesAny(raw, ['плохо', 'фу', 'нельзя', 'отставить', 'стоять'])) {
+      this.stopCombat();
+      this.brain.applyPunishmentVoice(raw);
+      // Муха пятится назад и опускает голову
+      this.bot.setControlState('forward', false);
+      this.bot.setControlState('back', true);
+      setTimeout(() => this.bot.setControlState('back', false), 800);
+      return this.pickRandom([
+        'Бззз... Прости! Дофаминовый укол! Больше так не делаю! 😿🪰',
+        'Бзз-ззз... Поняла, "фу"! Отступаю назад! 🪰🛑',
+        'Бззз! Стыдно, опустила усики... Исправлюсь! 🪰'
+      ]);
+    }
+
+    // 3. Целенаправленный боевой режим: "ФАС", "БЕЙ", "АТАКУЙ"
+    if (this.matchesAny(raw, ['фас', 'бей', 'атакуй', 'вдарь', 'убей', 'грызи'])) {
+      const target = this.findBestCombatTarget(username);
+      if (target) {
+        this.startCombatPursuit(target);
+        const targetName = target.username || target.displayName || target.name || 'цель';
+        return `Бзззз! ВИЖУ ЦЕЛЬ: ${targetName}! Включаю боевой охотничий контур! Лечу на перехват! ⚔️🪰💨`;
+      } else {
+        return 'Бззз! Кручу фасетками на 360°, но врагов поблизости не вижу! 🪰🔍';
+      }
+    }
+
+    // 4. Жалобы / Боль / Вопрос о самочувствии
     if (this.matchesAny(raw, ['как дела', 'как ты', 'жива', 'больно', 'бо-бо'])) {
       const stats = this.brain.learnedWeights;
       if (this.bot.health < 10) {
         return `Бззз... Мне плохо, сердечек мало (${this.bot.health.toFixed(1)}/20)! Мне было бо-бо! 🤕🪰`;
       }
-      return `Бззз! Всё отлично! Здоровье: ${this.bot.health}/20. Похвал получено: ${stats.rewardsReceived}, ушибов: ${stats.damageCount}. 🪰`;
+      return `Бззз! Всё отлично! Здоровье: ${this.bot.health}/20. Похвал: ${stats.rewardsReceived}, наказаний/бо-бо: ${stats.damageCount}. 🪰`;
     }
 
-    // 3. Команда копать / ломать перед собой
+    // 5. Команда копать / ломать перед собой
     if (this.matchesAny(raw, ['копай', 'ломай', 'вскопай', 'разбей', 'добудь'])) {
       this.digFrontBlock();
       return 'Бззз! Пробую ломать блок перед собой лапками и челюстями! ⛏️🪰';
     }
 
-    // 4. Команда поставить блок под ноги / перед собой
+    // 6. Команда поставить блок под ноги / перед собой
     if (this.matchesAny(raw, ['поставь', 'строй', 'блок'])) {
       const success = this.placeBlockNearby();
       if (success) {
@@ -50,13 +79,7 @@ class FlyDialogue {
       }
     }
 
-    // 5. Команда атаковать / драться
-    if (this.matchesAny(raw, ['бей', 'атакуй', 'вдарь', 'фас', 'убей'])) {
-      this.attackNearestTarget();
-      return 'Бзззз! В бой! Атакую ближайшую цель лапками! ⚔️🪰';
-    }
-
-    // 6. Вопрос про инвентарь
+    // 7. Вопрос про инвентарь
     if (this.matchesAny(raw, ['инвентарь', 'что у тебя', 'что несешь', 'вещи', 'лут'])) {
       const items = this.bot.inventory.items();
       if (items.length === 0) {
@@ -66,29 +89,29 @@ class FlyDialogue {
       return `Бззз! У меня с собой: ${names} 🎒🪰`;
     }
 
-    // 7. Команда идти к игроку
-    if (this.matchesAny(raw, ['ко мне', 'иди сюда', 'сюда', 'стой', 'подойди'])) {
+    // 8. Команда идти к игроку
+    if (this.matchesAny(raw, ['ко мне', 'иди сюда', 'сюда', 'подойди'])) {
+      this.stopCombat();
       this.lookAtPlayer(username);
       this.bot.setControlState('forward', true);
-      setTimeout(() => this.bot.setControlState('forward', false), 2000);
+      setTimeout(() => this.bot.setControlState('forward', false), 2500);
       return `Бззз! Бегу к тебе, ${username}! 🪰💨`;
     }
 
-    // 8. Приветствия
+    // 9. Приветствия
     if (this.matchesAny(raw, ['привет', 'ку', 'хай', 'здарова', 'салам', 'хей'])) {
       return `Бззз-привет, ${username}! Я муха с оцифрованным коннектомом, исследую этот кубический мир! 🪰👋`;
     }
 
-    // 9. Муха / кто ты
+    // 10. Муха / кто ты
     if (this.matchesAny(raw, ['кто ты', 'что ты', 'муха', 'ты кто'])) {
       return 'Я Drosophila melanogaster! Мой мозг оцифрован FlyWire, а тело ходит в теле игрока Minecraft! Бззз! 🪰🧠';
     }
 
-    // Дефолтный ответ с признаками понимания
     return this.pickRandom([
       `Бззз! Услышала тебя, ${username}, мои антенны шевелятся! 🪰`,
       `Бззз-ззз! Запомнила: "${text}". Продолжаю полёт! 🪰`,
-      `Бззз? Мой мозг еще учится русскому языку, скажи "копай", "поставь", "молодец" или "что у тебя"! 🪰`
+      `Бззз? Мой мозг еще учится русскому языку, скажи "фас", "фу", "копай", "поставь" или "молодец"! 🪰`
     ]);
   }
 
@@ -98,6 +121,90 @@ class FlyDialogue {
 
   pickRandom(arr) {
     return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  /**
+   * Находит лучшую цель для атаки (враждебный моб или ближайшее существо, не являющееся хозяином)
+   */
+  findBestCombatTarget(commanderName) {
+    let best = null;
+    let bestDist = 20.0; // радиус поиска цели 20 блоков
+
+    for (const id in this.bot.entities) {
+      const e = this.bot.entities[id];
+      if (!e || e === this.bot.entity) continue;
+      if (e.username === commanderName) continue; // не нападать на хозяина
+
+      const dist = this.bot.entity.position.distanceTo(e.position);
+      if (dist > bestDist) continue;
+
+      // Приоритет враждебным мобам
+      const isHostile = (e.type === 'mob' || e.type === 'hostile');
+      if (isHostile || e.type === 'player' || dist < bestDist) {
+        best = e;
+        bestDist = dist;
+      }
+    }
+    return best;
+  }
+
+  /**
+   * Запускает активное преследование и атаку цели
+   */
+  startCombatPursuit(target) {
+    this.stopCombat();
+    this.currentTarget = target;
+    this.brain.combatMode = true; // отключает хаотичное блуждание
+
+    let attackTicks = 0;
+    const maxTicks = 200; // 10 секунд охоты
+
+    this.attackInterval = setInterval(() => {
+      attackTicks++;
+
+      // Проверка валидности цели
+      if (!this.currentTarget || !this.currentTarget.isValid || attackTicks > maxTicks) {
+        this.stopCombat();
+        this.bot.chat('Бззз! Цель нейтрализована или потеряна! Возвращаюсь к обычному поиску! 🪰✅');
+        return;
+      }
+
+      const flyPos = this.bot.entity.position;
+      const targetPos = this.currentTarget.position.offset(0, this.currentTarget.height ? this.currentTarget.height / 2 : 1, 0);
+      const dist = flyPos.distanceTo(targetPos);
+
+      // 1. Поворот взгляда строго на цель (Eye-target tracking)
+      this.bot.lookAt(targetPos, true);
+
+      // 2. Движение к цели
+      if (dist > 2.8) {
+        // Добегаем
+        this.bot.setControlState('forward', true);
+        this.bot.setControlState('sprint', true);
+        // Если перед нами блок — прыгаем
+        const frontBlock = this.bot.blockAt(flyPos.offset(-Math.sin(this.bot.entity.yaw), 0, -Math.cos(this.bot.entity.yaw)));
+        if (frontBlock && frontBlock.boundingBox === 'block') {
+          this.bot.setControlState('jump', true);
+        } else {
+          this.bot.setControlState('jump', false);
+        }
+      } else {
+        // Достигли дистанции удара!
+        this.bot.setControlState('forward', false);
+        this.bot.setControlState('sprint', false);
+        this.bot.attack(this.currentTarget);
+      }
+    }, 50); // 20 раз в секунду
+  }
+
+  stopCombat() {
+    if (this.attackInterval) {
+      clearInterval(this.attackInterval);
+      this.attackInterval = null;
+    }
+    this.currentTarget = null;
+    this.brain.combatMode = false;
+    this.bot.setControlState('sprint', false);
   }
 
   async digFrontBlock() {
@@ -122,7 +229,6 @@ class FlyDialogue {
 
   async placeBlockNearby() {
     try {
-      // Ищем любой блок в инвентаре
       const item = this.bot.inventory.items().find(i => i.name.includes('stone') || i.name.includes('dirt') || i.name.includes('wood') || i.name.includes('plank') || i.name.includes('cobble'));
       if (!item) return false;
 
@@ -137,27 +243,6 @@ class FlyDialogue {
       console.log('[Fly Place Error]', e.message);
     }
     return false;
-  }
-
-  attackNearestTarget() {
-    let nearest = null;
-    let minDist = 4.0;
-    for (const id in this.bot.entities) {
-      const e = this.bot.entities[id];
-      if (e === this.bot.entity) continue;
-      const d = this.bot.entity.position.distanceTo(e.position);
-      if (d < minDist) {
-        minDist = d;
-        nearest = e;
-      }
-    }
-
-    if (nearest) {
-      this.bot.attack(nearest);
-      this.bot.chat(`Бззз! Кусь лапками по ${nearest.username || nearest.name || 'врагу'}! ⚔️`);
-    } else {
-      this.bot.chat('Бззз! Рядом никого нет, чтобы укусить! 🪰');
-    }
   }
 
   lookAtPlayer(username) {

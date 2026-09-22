@@ -27,13 +27,25 @@ async function main() {
   const bot = mineflayer.createBot(CONFIG);
   const brain = new DrosophilaBrain(16);
 
+  let lastHealth = 20;
+
   bot.on('spawn', () => {
     console.log(`[Fly Brain] 🟢 ${bot.username} has spawned in the world!`);
     console.log('[Fly Brain] Starting visual ommatidia & central complex loop (20 TPS)...');
-    
+    lastHealth = bot.health;
+
     // Start the fly brain decision loop (every 50ms = 1 Minecraft game tick)
     setInterval(() => {
       if (!bot.entity) return;
+
+      // 1. Check for damage -> Pain reflex ("БО-БО!")
+      if (bot.health < lastHealth) {
+        brain.applyDamagePain(lastHealth, bot.health);
+        bot.chat('Bzz-AIIIEEE! Бо-бо! 💥🪰');
+        lastHealth = bot.health;
+      } else if (bot.health > lastHealth) {
+        lastHealth = bot.health; // regenerated
+      }
       
       const sensoryData = sampleFlyVision(bot);
       const motorActions = brain.update(sensoryData);
@@ -142,7 +154,20 @@ function applyFlyMotorOutput(bot, actions) {
 
 bot.on('chat', (username, message) => {
   if (username === bot.username) return;
-  if (message.toLowerCase().includes('fly') || message.toLowerCase().includes('муха')) {
+  const lower = message.toLowerCase().trim();
+
+  // Похвала (Октопаминовое вознаграждение)
+  if (lower.includes('молодца') || lower.includes('умница') || lower.includes('хорош') || lower.includes('good')) {
+    brain.applyReward(message);
+    bot.chat('Bzzzz-happy! ✨🪰 (Приятно!)');
+    // Муха радостно подпрыгивает
+    bot.setControlState('jump', true);
+    setTimeout(() => bot.setControlState('jump', false), 350);
+    return;
+  }
+
+  // Общение
+  if (lower.includes('fly') || lower.includes('муха') || lower.includes('пчела')) {
     bot.chat('Bzzzz! 🪰');
   }
 });
